@@ -44,7 +44,26 @@ except :
   _ = lambda x : x
   internationalizeDocstring = lambda x : x
 
+Ice.loadSlice('', ['-I' + Ice.getSliceDir(), self.registryValue('mumbleSlice') ] )
+import Murmur
 
+class metaCallbackI(Murmur.MetaCallback):
+    def started(self, s, current=None):
+        serverR=Murmur.ServerCallbackPrx.uncheckedCast(adapter.addWithUUID(serverCallbackI(server, current.adapter)))
+        s.addCallback(serverR)
+
+class serverCallbackI(Murmur.ServerCallback):
+    def __init__(self, server, adapter, m):
+        self.server = server
+        self.m = m
+    def userConnected(self, p, current=None):
+        self.m.SayChannels(self.m.irc, "%s connected"%p.name)
+    def userDisconnected(self, p, current=None):
+        self.m.SayChannels(self.m.irc, "%s left"%p.name)
+    def userTextMessage(self, p, message, current=None):
+        self.m.SayChannels(self.m.irc, "<%s> %s"%(p.name, message.text))
+        
+ 
 @internationalizeDocstring
 class Mumble(callbacks.Plugin):
     """The Mumble plugin monitors the status of a Mumble server (murmur)
@@ -55,11 +74,10 @@ class Mumble(callbacks.Plugin):
     def __init__(self, irc):
         self.__parent = super(Mumble, self)
         self.__parent.__init__(irc)
+
+        self.irc = irc
         
-        Ice.loadSlice('', ['-I' + Ice.getSliceDir(), 
-                           self.registryValue('mumbleSlice') ] )
-        import Murmur
-        
+       
         prop = Ice.createProperties([])
         prop.setProperty("Ice.ImplicitContext", "Shared")
         prop.setProperty("Ice.MessageSizeMax",  "65535")
@@ -75,19 +93,26 @@ class Mumble(callbacks.Plugin):
                                                 self.registryValue('serverPort'))
         proxy = self.ice.stringToProxy(connstr)
         
-        meta = Murmur.MetaPrx.checkedCast(proxy)
-        self.server = meta.getServer(1)
+        self.meta = Murmur.MetaPrx.checkedCast(proxy)
+        self.server = self.meta.getServer(1)
+
+        adapter = self.ice.createObjectAdapterWithEndpoints("Callback.Client", "tcp -h {}".format(self.registryValue('serverIp')))
+
+        self.metaR=Murmur.MetaCallbackPrx.uncheckedCast(adapter.addWithUUID(metaCallbackI()))
+
+        adapter.activate()
+
+        self.meta.addCallback(self.metaR)
+        for server in self.meta.getBootedServers():
+            serverR=Murmur.ServerCallbackPrx.uncheckedCast(adapter.addWithUUID(serverCallbackI(server, adapter, self)))
+            server.addCallback(serverR)
+
 
         self.announceChannels = self.GetIrcChannels(irc)
 
-        ## Set up threaded checker
-        self.autoloop = True
-        self.t = threading.Timer(5.0, self.MumbleAutoLoop, [irc])
-        self.t.start()
-
     def die(self):
-        self.autoloop = False
-        self.t.cancel()
+        self.meta.removeCallback(self.metaR)
+        self.ice.shutdown()
         self.__parent.die()
     
     def GetUsers(self):
@@ -109,41 +134,7 @@ class Mumble(callbacks.Plugin):
         if not channels:
             channels = self.announceChannels
         for channel in channels:
-            irc.queueMsg(ircmsgs.privmsg(channel, text))
-    
-    def MumbleAutoLoop(self, irc):
-        """Periodically check for new users in mumble and announce 
-           to channel(s)"""
-        users = self.GetUsers()
-        usernames = []
-        for uk in users:
-            usernames.append(users[uk].name)
-            
-        name_str = ",".join(usernames)
-        if len(usernames) > 0:
-            msg_str = _('Users in mumble: {}').format(",".join(usernames))
-        else:
-            msg_str = _('No users in mumble')
-        self.SayChannels(irc, msg_str)
-            
-        while(self.autoloop):
-            time.sleep(self.registryValue('checkInterval'))
-            users = self.GetUsers()
-            currentusers = []
-            for uk in users:
-                currentusers.append(users[uk].name)
-            for name in currentusers:
-                try:
-                    usernames.index(name)
-                except:
-                    self.SayChannels(irc, _('{} has joined mumble').format(name))
-                    usernames.append(name)
-            for name in usernames:
-                try:
-                    currentusers.index(name)
-                except:
-                    self.SayChannels(irc, _('{} has left mumble').format(name))
-                    usernames.remove(name)
+            irc.queueMsg(ircmsgs.privmsg(channel, "[mumble] %s"%text))
 
     def GetMumbleChannels(self):
         """Obtain a list of channels"""
@@ -228,7 +219,6 @@ class Mumble(callbacks.Plugin):
         else:
             channels = self.GetMumbleChannels()
             for id, channel in channels.items():
-                #print(channel['name'].lower())
                 if (opts['dest'] == channel['id'] or 
                     opts['dest'].lower() == channel['name'].lower()) :
                     self.server.sendMessageChannel(int(channel['id']), 
