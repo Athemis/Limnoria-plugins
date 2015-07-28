@@ -44,8 +44,12 @@ except :
   _ = lambda x : x
   internationalizeDocstring = lambda x : x
 
-Ice.loadSlice('', ['-I' + Ice.getSliceDir(), self.registryValue('mumbleSlice') ] )
-import Murmur
+# Unfortunately, this path needs to be hardcoded here...
+Ice.loadSlice('', ['-I' + Ice.getSliceDir(), "/usr/share/murmur/Murmur.ice" ] )
+try:
+    import Murmur
+except ImportError:
+    print('#### FAILED TO IMPORT "Murmur"! CHECK YOUR SLICE PATH IN "plugin.py"! ####')
 
 class metaCallbackI(Murmur.MetaCallback):
     def started(self, s, current=None):
@@ -57,11 +61,11 @@ class serverCallbackI(Murmur.ServerCallback):
         self.server = server
         self.m = m
     def userConnected(self, p, current=None):
-        self.m.SayChannels(self.m.irc, "%s connected"%p.name)
+        self.m.SayChannels(self.m.irc, "{} connected".format(p.name))
     def userDisconnected(self, p, current=None):
-        self.m.SayChannels(self.m.irc, "%s left"%p.name)
+        self.m.SayChannels(self.m.irc, "{} left".format(p.name))
     def userTextMessage(self, p, message, current=None):
-        self.m.SayChannels(self.m.irc, "<%s> %s"%(p.name, message.text))
+        self.m.SayChannels(self.m.irc, "<{}> {}".format(p.name, message.text))
         
  
 @internationalizeDocstring
@@ -76,7 +80,6 @@ class Mumble(callbacks.Plugin):
         self.__parent.__init__(irc)
 
         self.irc = irc
-        
        
         prop = Ice.createProperties([])
         prop.setProperty("Ice.ImplicitContext", "Shared")
@@ -134,7 +137,7 @@ class Mumble(callbacks.Plugin):
         if not channels:
             channels = self.announceChannels
         for channel in channels:
-            irc.queueMsg(ircmsgs.privmsg(channel, "[mumble] %s"%text))
+            irc.queueMsg(ircmsgs.privmsg(channel, "[mumble] {}".format(text)))
 
     def GetMumbleChannels(self):
         """Obtain a list of channels"""

@@ -49,8 +49,6 @@ conf.registerGlobalValue(Mumble, 'serverIp',
     registry.String('127.0.0.1', _("""Server IP of murmur""")))
 conf.registerGlobalValue(Mumble, 'serverPort',
     registry.String('6502', _("""Murmur port to connect to""")))
-conf.registerGlobalValue(Mumble, 'mumbleSlice',
-    registry.String('/usr/share/murmur/Murmur.ice', _("""Path to Murmur.ice""")))
 conf.registerGlobalValue(Mumble, 'mumbleSecret',
     registry.String('mysecret', _("""Password to connect to murmur""")))
 conf.registerGlobalValue(Mumble, 'announceChannels',
