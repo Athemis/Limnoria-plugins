@@ -49,7 +49,6 @@ import Murmur
 
 class metaCallbackI(Murmur.MetaCallback):
     def started(self, s, current=None):
-        print "DEBUG: got a callback on started"
         serverR=Murmur.ServerCallbackPrx.uncheckedCast(adapter.addWithUUID(serverCallbackI(server, current.adapter)))
         s.addCallback(serverR)
 
@@ -220,7 +219,6 @@ class Mumble(callbacks.Plugin):
         else:
             channels = self.GetMumbleChannels()
             for id, channel in channels.items():
-                #print(channel['name'].lower())
                 if (opts['dest'] == channel['id'] or 
                     opts['dest'].lower() == channel['name'].lower()) :
                     self.server.sendMessageChannel(int(channel['id']), 
