@@ -44,9 +44,7 @@ except :
   _ = lambda x : x
   internationalizeDocstring = lambda x : x
 
-#XXX: Have to hard-code the location to Murmur.ice for now, because I don't know 
-#how to make Murmure available to metaCallbackI and serverCallbackI without
-Ice.loadSlice('', ['-I' + Ice.getSliceDir(), "/usr/share/slice/Murmur.ice" ] )
+Ice.loadSlice('', ['-I' + Ice.getSliceDir(), self.registryValue('mumbleSlice') ] )
 import Murmur
 
 class metaCallbackI(Murmur.MetaCallback):
@@ -138,40 +136,6 @@ class Mumble(callbacks.Plugin):
             channels = self.announceChannels
         for channel in channels:
             irc.queueMsg(ircmsgs.privmsg(channel, "[mumble] %s"%text))
-    
-#    def MumbleAutoLoop(self, irc):
-#        """Periodically check for new users in mumble and announce 
-#           to channel(s)"""
-#        users = self.GetUsers()
-#        usernames = []
-#        for uk in users:
-#            usernames.append(users[uk].name)
-#            
-#        name_str = ",".join(usernames)
-#        if len(usernames) > 0:
-#            msg_str = _('Users in mumble: {}').format(",".join(usernames))
-#        else:
-#            msg_str = _('No users in mumble')
-#        self.SayChannels(irc, msg_str)
-#            
-#        while(self.autoloop):
-#            time.sleep(self.registryValue('checkInterval'))
-#            users = self.GetUsers()
-#            currentusers = []
-#            for uk in users:
-#                currentusers.append(users[uk].name)
-#            for name in currentusers:
-#                try:
-#                    usernames.index(name)
-#                except:
-#                    self.SayChannels(irc, _('{} has joined mumble').format(name))
-#                    usernames.append(name)
-#            for name in usernames:
-#                try:
-#                    currentusers.index(name)
-#                except:
-#                    self.SayChannels(irc, _('{} has left mumble').format(name))
-#                    usernames.remove(name)
 
     def GetMumbleChannels(self):
         """Obtain a list of channels"""
